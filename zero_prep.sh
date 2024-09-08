@@ -51,10 +51,10 @@ detect_shell() {
     esac
 }
 
-# Get list of installed applications
+# Get list of installed applications, including from ~/Applications
 get_installed_apps() {
     echo "Getting list of installed applications..."
-    find /Applications /System/Applications -maxdepth 1 -name "*.app" | sed 's#.*/##' | sed 's/.app$//'
+    find /Applications /System/Applications ~/Applications -maxdepth 1 -name "*.app" | sed 's#.*/##' | sed 's/.app$//'
 }
 
 # Built-in macOS system preferences to always capture
@@ -65,6 +65,7 @@ builtin_system_prefs=(
     "com.apple.screensaver"
     "com.apple.menuextra.clock"
     "com.apple.screencapture"
+    "com.apple.preference"   # System Preferences pane
 )
 
 # Capture defaults only for installed applications and built-in system preferences
@@ -84,7 +85,7 @@ generate_defaults() {
         done
     done
 
-    # Capture system defaults for installed applications
+    # Capture system defaults for installed applications, including those from ~/Applications
     for domain in $(defaults domains | sed 's/, /\n/g'); do
         app_name=$(echo "$domain" | awk -F'.' '{print $NF}')
         if [[ "$installed_apps" =~ "$app_name" ]]; then
@@ -225,3 +226,25 @@ echo "Creating setup scripts..."
 
 # Example script for before setup
 cat <<'EOF' > "$RUN_BEFORE_DIR/01-before.sh"
+#!/bin/bash
+# Example script to run before setup
+echo "Running pre-setup tasks..."
+# Add your pre-setup commands here
+EOF
+chmod +x "$RUN_BEFORE_DIR/01-before.sh"
+
+# Example script for after setup
+cat <<'EOF' > "$RUN_AFTER_DIR/01-after.sh"
+#!/bin/bash
+# Example script to run after setup
+echo "Running post-setup tasks..."
+# Add your post-setup commands here
+EOF
+chmod +x "$RUN_AFTER_DIR/01-after.sh"
+
+# Step 7: If the --bootstrap option is enabled, clone the zero.sh repo as a submodule and prepare it
+if [ "$BOOTSTRAP" = true ]; then
+    bootstrap_zero_sh
+fi
+
+echo "Setup completed. Configuration files have been generated in $DOTFILES_DIR."
