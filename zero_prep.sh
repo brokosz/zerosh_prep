@@ -11,19 +11,19 @@ Options:
   -p, --path           Specify a custom path for the output directory
                        (this will be used as the base directory for all files)
   -w, --workspace      Specify the workspace name (e.g., home, work, shared)
-  -b, --bootstrap      Bootstrap the zero.sh repository without running setup
+  -b, --bootstrap      Bootstrap the zero.sh repository as a Git submodule without running setup
 
 This script performs the following steps:
   1. Detects the current shell environment and copies the appropriate shell configuration file.
   2. Generates a Brewfile with installed Homebrew packages.
   3. Captures macOS system defaults (for installed applications and built-in system preferences) and saves them in defaults.yaml.
   4. Copies the user's dotfiles and configuration files (e.g., .gitconfig, .config) to the symlinks directory.
-  5. Optionally, pulls the latest zero.sh repository for use on a new system.
+  5. Optionally, pulls the latest zero.sh repository as a submodule, pins it to a specific version, and prepares it for use on a new system.
 
 Examples:
   ${0##*/} -w home          Create a setup for the 'home' workspace.
   ${0##*/} -p /path/to/dir  Save configuration files to a custom directory.
-  ${0##*/} -b               Bootstrap the zero.sh repository without running setup.
+  ${0##*/} -b               Bootstrap the zero.sh repository as a submodule.
 EOF
 }
 
@@ -51,68 +51,30 @@ detect_shell() {
     esac
 }
 
-# Get list of installed applications
-get_installed_apps() {
-    echo "Getting list of installed applications..."
-    find /Applications /System/Applications -maxdepth 1 -name "*.app" | sed 's#.*/##' | sed 's/.app$//'
-}
-
-# Built-in macOS system preferences to always capture
-builtin_system_prefs=(
-    "com.apple.dock"
-    "com.apple.finder"
-    "com.apple.systempreferences"
-    "com.apple.screensaver"
-    "com.apple.menuextra.clock"
-    "com.apple.screencapture"
-)
-
-# Capture defaults only for installed applications and built-in system preferences
-generate_defaults() {
-    echo "Generating defaults.yaml for installed applications and system preferences..."
-    echo "---" > "$DEFAULTS_YAML"
-
-    installed_apps=$(get_installed_apps)
-
-    # Capture system defaults for built-in macOS preferences
-    for domain in "${builtin_system_prefs[@]}"; do
-        echo "Processing built-in system preference: $domain"
-        echo "$domain:" >> "$DEFAULTS_YAML"
-        for key in $(defaults read "$domain" 2>/dev/null | grep '=' | awk '{print $1}'); do
-            value=$(defaults read "$domain" "$key" 2>/dev/null)
-            echo "  $key: $value" >> "$DEFAULTS_YAML"
-        done
-    done
-
-    # Capture system defaults for installed applications
-    for domain in $(defaults domains | sed 's/, /\n/g'); do
-        app_name=$(echo "$domain" | awk -F'.' '{print $NF}')
-        if [[ "$installed_apps" =~ "$app_name" ]]; then
-            echo "Processing domain: $domain for installed app: $app_name"
-            echo "$domain:" >> "$DEFAULTS_YAML"
-            for key in $(defaults read "$domain" 2>/dev/null | grep '=' | awk '{print $1}'); do
-                value=$(defaults read "$domain" "$key" 2>/dev/null)
-                echo "  $key: $value" >> "$DEFAULTS_YAML"
-            done
-        fi
-    done
-}
-
-# Bootstrap zero.sh repository without running setup
+# Bootstrap zero.sh repository as a submodule and pin to a specific version
 bootstrap_zero_sh() {
     ZERO_REPO_URL="https://github.com/zero-sh/zero.sh"
     ZERO_REPO_DIR="$DOTFILES_DIR/zero"
 
-    echo "Cloning the zero.sh repository..."
+    echo "Adding zero.sh as a submodule..."
     if [ ! -d "$ZERO_REPO_DIR" ]; then
-        git clone "$ZERO_REPO_URL" "$ZERO_REPO_DIR"
-    else
-        echo "Zero.sh repository already exists, pulling latest changes..."
-        git -C "$ZERO_REPO_DIR" pull
+        git submodule add "$ZERO_REPO_URL" "$ZERO_REPO_DIR"
     fi
 
-    echo "Zero.sh repository has been prepared for use on the new system."
-    echo "On the new system, run 'zero setup' to apply the configuration."
+    echo "Updating zero.sh submodule to the latest stable version..."
+    git submodule update --init --remote "$ZERO_REPO_DIR"
+
+    # Pin to the latest stable version (can be replaced with a specific tag or version)
+    LATEST_VERSION=$(git -C "$ZERO_REPO_DIR" describe --tags `git rev-list --tags --max-count=1`)
+    git -C "$ZERO_REPO_DIR" checkout "$LATEST_VERSION"
+    echo "Pinned zero.sh to version: $LATEST_VERSION"
+
+    # Commit the changes in the main repo
+    git add "$ZERO_REPO_DIR"
+    git commit -m "Added zero.sh submodule and pinned to version $LATEST_VERSION"
+
+    echo "Zero.sh repository has been added as a submodule and pinned to $LATEST_VERSION."
+    echo "On the new system, clone the repository with --recursive and run 'zero setup' to apply the configuration."
 }
 
 # Parse command-line arguments
@@ -198,7 +160,26 @@ else
 fi
 
 # Step 2: Generate defaults.yaml for installed applications and built-in system preferences
-generate_defaults
+echo "Generating defaults.yaml from installed applications and system preferences..."
+echo "---" > "$DEFAULTS_YAML"
+
+builtin_system_prefs=(
+    "com.apple.dock"
+    "com.apple.finder"
+    "com.apple.systempreferences"
+    "com.apple.screensaver"
+    "com.apple.menuextra.clock"
+    "com.apple.screencapture"
+)
+
+for domain in "${builtin_system_prefs[@]}"; do
+    echo "Processing system preference: $domain"
+    echo "$domain:" >> "$DEFAULTS_YAML"
+    for key in $(defaults read "$domain" 2>/dev/null | grep '=' | awk '{print $1}'); do
+        value=$(defaults read "$domain" "$key" 2>/dev/null)
+        echo "  $key: $value" >> "$DEFAULTS_YAML"
+    done
+done
 
 # Step 3: Copy the correct shell configuration file to the symlinks directory
 if [ -f "$SHELL_RC_FILE" ]; then
@@ -225,3 +206,25 @@ echo "Creating setup scripts..."
 
 # Example script for before setup
 cat <<'EOF' > "$RUN_BEFORE_DIR/01-before.sh"
+#!/bin/bash
+# Example script to run before setup
+echo "Running pre-setup tasks..."
+# Add your pre-setup commands here
+EOF
+chmod +x "$RUN_BEFORE_DIR/01-before.sh"
+
+# Example script for after setup
+cat <<'EOF' > "$RUN_AFTER_DIR/01-after.sh"
+#!/bin/bash
+# Example script to run after setup
+echo "Running post-setup tasks..."
+# Add your post-setup commands here
+EOF
+chmod +x "$RUN_AFTER_DIR/01-after.sh"
+
+# Step 7: If the --bootstrap option is enabled, clone the zero.sh repo as a submodule and pin it
+if [ "$BOOTSTRAP" = true ]; then
+    bootstrap_zero_sh
+fi
+
+#
