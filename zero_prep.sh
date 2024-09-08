@@ -71,6 +71,10 @@ builtin_system_prefs=(
 # Capture defaults only for installed applications and built-in system preferences
 generate_defaults() {
     echo "Generating defaults.yaml for installed applications and system preferences..."
+    if [ -f "$DEFAULTS_YAML" ]; then
+        echo "defaults.yaml already exists. Skipping generation."
+        return
+    fi
     echo "---" > "$DEFAULTS_YAML"
 
     installed_apps=$(get_installed_apps)
@@ -104,11 +108,11 @@ bootstrap_zero_sh() {
     ZERO_REPO_URL="https://github.com/zero-sh/zero.sh"
     ZERO_REPO_DIR="$DOTFILES_DIR/zero"
 
-    echo "Cloning the zero.sh repository..."
     if [ ! -d "$ZERO_REPO_DIR" ]; then
+        echo "Cloning the zero.sh repository..."
         git clone "$ZERO_REPO_URL" "$ZERO_REPO_DIR"
     else
-        echo "Zero.sh repository already exists, pulling latest changes..."
+        echo "Zero.sh repository already exists. Pulling latest changes..."
         git -C "$ZERO_REPO_DIR" pull
     fi
 
@@ -187,13 +191,17 @@ SYMLINKS_DIR="$DOTFILES_DIR/symlinks"
 RUN_BEFORE_DIR="$DOTFILES_DIR/run/before"
 RUN_AFTER_DIR="$DOTFILES_DIR/run/after"
 
-# Create necessary directories
+# Create necessary directories only if they don't exist
 mkdir -p "$SYMLINKS_DIR/shell" "$SYMLINKS_DIR/git" "$SYMLINKS_DIR/config" "$RUN_BEFORE_DIR" "$RUN_AFTER_DIR"
 
 # Step 1: Generate Brewfile
 echo "Generating Brewfile..."
 if command -v brew >/dev/null; then
-  brew bundle dump --file="$BREWFILE" --force
+  if [ -f "$BREWFILE" ]; then
+    echo "Brewfile already exists. Skipping generation."
+  else
+    brew bundle dump --file="$BREWFILE" --force
+  fi
 else
   echo "Homebrew is not installed on this system."
 fi
@@ -203,20 +211,36 @@ generate_defaults
 
 # Step 3: Copy the correct shell configuration file to the symlinks directory
 if [ -f "$SHELL_RC_FILE" ]; then
-    echo "Copying shell configuration file ($SHELL_RC_FILE) to symlinks..."
-    cp "$SHELL_RC_FILE" "$SYMLINKS_DIR/shell/$(basename "$SHELL_RC_FILE")"
+    if [ ! -f "$SYMLINKS_DIR/shell/$(basename "$SHELL_RC_FILE")" ]; then
+        echo "Copying shell configuration file ($SHELL_RC_FILE) to symlinks..."
+        cp "$SHELL_RC_FILE" "$SYMLINKS_DIR/shell/$(basename "$SHELL_RC_FILE")"
+    else
+        echo "Shell configuration file already exists in symlinks. Skipping copy."
+    fi
 else
     echo "No shell configuration file found for $SHELL_NAME."
 fi
 
 # Step 4: Copy dotfiles for other configurations (e.g., git)
-echo "Copying dotfiles to symlinks..."
-cp "$HOME/.gitconfig" "$SYMLINKS_DIR/git/.gitconfig"
+if [ -f "$HOME/.gitconfig" ]; then
+    if [ ! -f "$SYMLINKS_DIR/git/.gitconfig" ]; then
+        echo "Copying .gitconfig to symlinks..."
+        cp "$HOME/.gitconfig" "$SYMLINKS_DIR/git/.gitconfig"
+    else
+        echo ".gitconfig already exists in symlinks. Skipping copy."
+    fi
+else
+    echo ".gitconfig not found."
+fi
 
 # Step 5: Symlink the entire .config folder, excluding the custom path to prevent recursion
-echo "Copying .config folder to symlinks..."
 if [ -d "$HOME/.config" ]; then
-    rsync -a --exclude "$DOTFILES_DIR" "$HOME/.config/" "$SYMLINKS_DIR/config/"
+    if [ ! -d "$SYMLINKS_DIR/config" ]; then
+        echo "Copying .config folder to symlinks..."
+        rsync -a --exclude "$DOTFILES_DIR" "$HOME/.config/" "$SYMLINKS_DIR/config/"
+    else
+        echo ".config folder already exists in symlinks. Skipping copy."
+    fi
 else
     echo ".config folder not found."
 fi
@@ -225,22 +249,30 @@ fi
 echo "Creating setup scripts..."
 
 # Example script for before setup
-cat <<'EOF' > "$RUN_BEFORE_DIR/01-before.sh"
+if [ ! -f "$RUN_BEFORE_DIR/01-before.sh" ]; then
+    cat <<'EOF' > "$RUN_BEFORE_DIR/01-before.sh"
 #!/bin/bash
 # Example script to run before setup
 echo "Running pre-setup tasks..."
 # Add your pre-setup commands here
 EOF
-chmod +x "$RUN_BEFORE_DIR/01-before.sh"
+    chmod +x "$RUN_BEFORE_DIR/01-before.sh"
+else
+    echo "Pre-setup script already exists. Skipping creation."
+fi
 
 # Example script for after setup
-cat <<'EOF' > "$RUN_AFTER_DIR/01-after.sh"
+if [ ! -f "$RUN_AFTER_DIR/01-after.sh" ]; then
+    cat <<'EOF' > "$RUN_AFTER_DIR/01-after.sh"
 #!/bin/bash
 # Example script to run after setup
 echo "Running post-setup tasks..."
 # Add your post-setup commands here
 EOF
-chmod +x "$RUN_AFTER_DIR/01-after.sh"
+    chmod +x "$RUN_AFTER_DIR/01-after.sh"
+else
+    echo "Post-setup script already exists. Skipping creation."
+fi
 
 # Step 7: If the --bootstrap option is enabled, clone the zero.sh repo as a submodule and prepare it
 if [ "$BOOTSTRAP" = true ]; then
