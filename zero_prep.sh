@@ -13,33 +13,44 @@ Options:
   -w, --workspace      Specify the workspace name (e.g., home, work, shared)
   -b, --bootstrap      Bootstrap the zero.sh repository without running setup
 
+This script performs the following steps:
+  1. Detects the current shell environment and copies the appropriate shell configuration file.
+  2. Generates a Brewfile with installed Homebrew packages.
+  3. Captures macOS system defaults (for installed applications and built-in system preferences) and saves them in defaults.yaml.
+  4. Copies the user's dotfiles and configuration files (e.g., .gitconfig, .config) to the symlinks directory.
+  5. Optionally, pulls the latest zero.sh repository for use on a new system.
+
 Examples:
   ${0##*/} -w home          Create a setup for the 'home' workspace.
-  ${0##*/} -p /path/to/store/prepped/config  Save configuration files to a custom directory.
+  ${0##*/} -p /path/to/dir  Save configuration files to a custom directory.
   ${0##*/} -b               Bootstrap the zero.sh repository without running setup.
 EOF
 }
 
-# Detect the current shell environment reliably
+# Detect the current shell environment
 detect_shell() {
-    SHELL_NAME=$(ps -p $$ -o comm=)
+    SHELL_NAME=$(basename "$SHELL")
 
     case "$SHELL_NAME" in
-        *bash)
+        bash)
             echo "Detected bash shell."
             SHELL_RC_FILE="$HOME/.bashrc"
+            SHELL_PROFILE="$HOME/.bash_profile"
             ;;
-        *zsh)
+        zsh)
             echo "Detected zsh shell."
             SHELL_RC_FILE="$HOME/.zshrc"
+            SHELL_PROFILE="$HOME/.zprofile"
             ;;
-        *fish)
+        fish)
             echo "Detected fish shell."
             SHELL_RC_FILE="$HOME/.config/fish/config.fish"
+            SHELL_PROFILE="$HOME/.config/fish/config.fish"
             ;;
         *)
-            echo "Unsupported or undetected shell: $SHELL_NAME"
+            echo "Unsupported shell: $SHELL_NAME"
             SHELL_RC_FILE=""
+            SHELL_PROFILE=""
             ;;
     esac
 }
@@ -95,7 +106,7 @@ generate_defaults() {
 # Bootstrap zero.sh repository without running setup
 bootstrap_zero_sh() {
     ZERO_REPO_URL="https://github.com/zero-sh/zero.sh"
-    ZERO_REPO_DIR="$DOTFILES_DIR/zero"
+    ZERO_REPO_DIR="$HOME/.dotfiles/zero"  # Place zero.sh in the root of .dotfiles
 
     echo "Cloning the zero.sh repository..."
     if [ ! -d "$ZERO_REPO_DIR" ]; then
@@ -155,9 +166,11 @@ done
 
 # Ensure the custom directory is used, and create it if it doesn't exist
 if [ -z "$DOTFILES_DIR" ]; then
-    read -p "Enter the path to save the zero.sh config files (or press Enter to use default: ~/.dotfiles): " INPUT_PATH
-    DOTFILES_DIR=${INPUT_PATH:-"$HOME/.dotfiles"}
+    read -p "Enter the path to save the zero.sh config files (or press Enter to use default: ~/zero_prep): " INPUT_PATH
+    DOTFILES_DIR=${INPUT_PATH:-"$HOME/zero_prep"}
 fi
+
+mkdir -p "$DOTFILES_DIR"
 
 # If a workspace is specified, create a workspace subdirectory
 if [ -n "$WORKSPACE" ]; then
@@ -168,24 +181,23 @@ fi
 mkdir -p "$DOTFILES_DIR"
 echo "Using directory: $DOTFILES_DIR"
 
-# Now use DOTFILES_DIR for storing all config-related files (Brewfile, run, symlinks, etc.)
+# Detect the user's shell and set the appropriate configuration file
+detect_shell
+
+# Define other paths based on the provided or default dotfiles directory
 BREWFILE="$DOTFILES_DIR/Brewfile"
 DEFAULTS_YAML="$DOTFILES_DIR/defaults.yaml"
-SYMLINKS_DIR="$DOTFILES_DIR/symlinks"
+SYMLINKS_DIR="$DOTFILES_DIR/symlinks/$SHELL_NAME"  # Use shell name as folder
 RUN_BEFORE_DIR="$DOTFILES_DIR/run/before"
 RUN_AFTER_DIR="$DOTFILES_DIR/run/after"
 
-# Create necessary directories only if they don't exist
-mkdir -p "$SYMLINKS_DIR/shell" "$SYMLINKS_DIR/git" "$SYMLINKS_DIR/config" "$RUN_BEFORE_DIR" "$RUN_AFTER_DIR"
+# Create necessary directories
+mkdir -p "$SYMLINKS_DIR" "$SYMLINKS_DIR/git" "$SYMLINKS_DIR/config" "$RUN_BEFORE_DIR" "$RUN_AFTER_DIR"
 
 # Step 1: Generate Brewfile
 echo "Generating Brewfile..."
 if command -v brew >/dev/null; then
-  if [ ! -f "$BREWFILE" ]; then
-    brew bundle dump --file="$BREWFILE" --force
-  else
-    echo "Brewfile already exists. Skipping generation."
-  fi
+  brew bundle dump --file="$BREWFILE" --force
 else
   echo "Homebrew is not installed on this system."
 fi
@@ -193,38 +205,29 @@ fi
 # Step 2: Generate defaults.yaml for installed applications and built-in system preferences
 generate_defaults
 
-# Step 3: Copy the correct shell configuration file to the symlinks directory
+# Step 3: Copy the correct shell configuration file and profile file to the symlinks directory
 if [ -f "$SHELL_RC_FILE" ]; then
-    if [ ! -f "$SYMLINKS_DIR/shell/$(basename "$SHELL_RC_FILE")" ]; then
-        echo "Copying shell configuration file ($SHELL_RC_FILE) to symlinks..."
-        cp "$SHELL_RC_FILE" "$SYMLINKS_DIR/shell/$(basename "$SHELL_RC_FILE")"
-    else
-        echo "Shell configuration file already exists in symlinks. Skipping copy."
-    fi
+    echo "Copying shell configuration file ($SHELL_RC_FILE) to symlinks..."
+    cp "$SHELL_RC_FILE" "$SYMLINKS_DIR/$(basename "$SHELL_RC_FILE")"
 else
     echo "No shell configuration file found for $SHELL_NAME."
 fi
 
-# Step 4: Copy dotfiles for other configurations (e.g., git)
-if [ -f "$HOME/.gitconfig" ]; then
-    if [ ! -f "$SYMLINKS_DIR/git/.gitconfig" ]; then
-        echo "Copying .gitconfig to symlinks..."
-        cp "$HOME/.gitconfig" "$SYMLINKS_DIR/git/.gitconfig"
-    else
-        echo ".gitconfig already exists in symlinks. Skipping copy."
-    fi
+if [ -f "$SHELL_PROFILE" ]; then
+    echo "Copying shell profile file ($SHELL_PROFILE) to symlinks..."
+    cp "$SHELL_PROFILE" "$SYMLINKS_DIR/$(basename "$SHELL_PROFILE")"
 else
-    echo ".gitconfig not found."
+    echo "No shell profile file found for $SHELL_NAME."
 fi
 
+# Step 4: Copy dotfiles for other configurations (e.g., git)
+echo "Copying dotfiles to symlinks..."
+cp "$HOME/.gitconfig" "$SYMLINKS_DIR/git/.gitconfig"
+
 # Step 5: Symlink the entire .config folder, excluding the custom path to prevent recursion
+echo "Copying .config folder to symlinks..."
 if [ -d "$HOME/.config" ]; then
-    if [ ! -d "$SYMLINKS_DIR/config" ]; then
-        echo "Copying .config folder to symlinks..."
-        rsync -a --exclude "$DOTFILES_DIR" "$HOME/.config/" "$SYMLINKS_DIR/config/"
-    else
-        echo ".config folder already exists in symlinks. Skipping copy."
-    fi
+    rsync -a --exclude "$DOTFILES_DIR" "$HOME/.config/" "$SYMLINKS_DIR/config/"
 else
     echo ".config folder not found."
 fi
@@ -233,30 +236,22 @@ fi
 echo "Creating setup scripts..."
 
 # Example script for before setup
-if [ ! -f "$RUN_BEFORE_DIR/01-before.sh" ]; then
-    cat <<'EOF' > "$RUN_BEFORE_DIR/01-before.sh"
+cat <<'EOF' > "$RUN_BEFORE_DIR/01-before.sh"
 #!/bin/bash
 # Example script to run before setup
 echo "Running pre-setup tasks..."
 # Add your pre-setup commands here
 EOF
-    chmod +x "$RUN_BEFORE_DIR/01-before.sh"
-else
-    echo "Pre-setup script already exists. Skipping creation."
-fi
+chmod +x "$RUN_BEFORE_DIR/01-before.sh"
 
 # Example script for after setup
-if [ ! -f "$RUN_AFTER_DIR/01-after.sh" ]; then
-    cat <<'EOF' > "$RUN_AFTER_DIR/01-after.sh"
+cat <<'EOF' > "$RUN_AFTER_DIR/01-after.sh"
 #!/bin/bash
 # Example script to run after setup
 echo "Running post-setup tasks..."
 # Add your post-setup commands here
 EOF
-    chmod +x "$RUN_AFTER_DIR/01-after.sh"
-else
-    echo "Post-setup script already exists. Skipping creation."
-fi
+chmod +x "$RUN_AFTER_DIR/01-after.sh"
 
 # Step 7: If the --bootstrap option is enabled, clone the zero.sh repo as a submodule and prepare it
 if [ "$BOOTSTRAP" = true ]; then
