@@ -71,10 +71,6 @@ builtin_system_prefs=(
 # Capture defaults only for installed applications and built-in system preferences
 generate_defaults() {
     echo "Generating defaults.yaml for installed applications and system preferences..."
-    if [ -f "$DEFAULTS_YAML" ]; then
-        echo "defaults.yaml already exists. Skipping generation."
-        return
-    fi
     echo "---" > "$DEFAULTS_YAML"
 
     installed_apps=$(get_installed_apps)
@@ -108,11 +104,11 @@ bootstrap_zero_sh() {
     ZERO_REPO_URL="https://github.com/zero-sh/zero.sh"
     ZERO_REPO_DIR="$DOTFILES_DIR/zero"
 
+    echo "Cloning the zero.sh repository..."
     if [ ! -d "$ZERO_REPO_DIR" ]; then
-        echo "Cloning the zero.sh repository..."
         git clone "$ZERO_REPO_URL" "$ZERO_REPO_DIR"
     else
-        echo "Zero.sh repository already exists. Pulling latest changes..."
+        echo "Zero.sh repository already exists, pulling latest changes..."
         git -C "$ZERO_REPO_DIR" pull
     fi
 
@@ -166,19 +162,22 @@ done
 
 # Ensure the custom directory is used, and create it if it doesn't exist
 if [ -z "$DOTFILES_DIR" ]; then
-    read -p "Enter the path to save the zero.sh config files (or press Enter to use default: ~/zero_prep): " INPUT_PATH
-    DOTFILES_DIR=${INPUT_PATH:-"$HOME/zero_prep"}
+    read -p "Enter the path to save the zero.sh config files (or press Enter to use default: ~/.dotfiles): " INPUT_PATH
+    DOTFILES_DIR=${INPUT_PATH:-"$HOME/.dotfiles"}
 fi
 
 mkdir -p "$DOTFILES_DIR"
 
-# If a workspace is specified, create a workspace subdirectory
+# If a workspace is specified, create a workspace subdirectory inside the "workspaces" folder
+WORKSPACE_DIR="$DOTFILES_DIR/workspaces"
+mkdir -p "$WORKSPACE_DIR"
+
 if [ -n "$WORKSPACE" ]; then
-    DOTFILES_DIR="$DOTFILES_DIR/workspaces/$WORKSPACE"
+    WORKSPACE_DIR="$WORKSPACE_DIR/$WORKSPACE"
     echo "Creating workspace: $WORKSPACE"
+    mkdir -p "$WORKSPACE_DIR"
 fi
 
-mkdir -p "$DOTFILES_DIR"
 echo "Using directory: $DOTFILES_DIR"
 
 # Detect the user's shell and set the appropriate configuration file
@@ -190,6 +189,7 @@ DEFAULTS_YAML="$DOTFILES_DIR/defaults.yaml"
 SYMLINKS_DIR="$DOTFILES_DIR/symlinks"
 RUN_BEFORE_DIR="$DOTFILES_DIR/run/before"
 RUN_AFTER_DIR="$DOTFILES_DIR/run/after"
+ZERO_DIR="$DOTFILES_DIR/zero"
 
 # Create necessary directories only if they don't exist
 mkdir -p "$SYMLINKS_DIR/shell" "$SYMLINKS_DIR/git" "$SYMLINKS_DIR/config" "$RUN_BEFORE_DIR" "$RUN_AFTER_DIR"
