@@ -259,3 +259,34 @@ if [ "$BOOTSTRAP" = true ]; then
 fi
 
 echo "Setup completed. Configuration files have been generated in $DOTFILES_DIR."
+
+# Next steps message
+cat <<EOF
+
+=========================
+    NEXT STEPS
+=========================
+1. Review the generated files in $DOTFILES_DIR.
+   - Add any other folders you wish to symlink (e.g., additional dotfiles or application settings).
+   - Customize the \`run/before\` and \`run/after\` scripts to tailor pre- or post-setup tasks.
+
+2. Copy or move the contents of the directory to ~/.dotfiles:
+   mv $DOTFILES_DIR ~/.dotfiles
+
+3. Optionally, upload the ~/.dotfiles directory to a Git repository for future use:
+   cd ~/.dotfiles
+   git init
+   git remote add origin <your-repo-url>
+   git add .
+   git commit -m "Initial dotfiles commit"
+   git push -u origin master
+
+4. On a new machine:
+   a. Clone the repository:
+      git clone https://github.com/<your-username>/<your-repo>.git ~/.dotfiles --recursive
+   b. Run zero.sh setup:
+      caffeinate -i ~/.dotfiles/zero/setup
+
+This will ensure the machine doesn't go to sleep during the setup process.
+
+EOF
