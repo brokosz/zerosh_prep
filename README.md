@@ -111,7 +111,7 @@ The script generates the following structure:
    git remote add origin <your-repo-url>
    git add .
    git commit -m "Initial dotfiles commit"
-   git push -u origin master
+   git push -u origin main
    ```
 
 4. On a new machine:
