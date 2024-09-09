@@ -37,8 +37,8 @@ This repository allows you to:
 ## Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/yourrepo.git
-   cd yourrepo
+   git clone https://github.com/brokosz/zerosh_prep.git ~/.dotfiles
+   cd ~/.dotfiles
    ```
 
 2. Make sure the main script is executable:
@@ -51,7 +51,7 @@ This repository allows you to:
 ### Step-by-Step Instructions
 1. Run the `zero_prep.sh` script to prepare your system configuration:
    ```bash
-   ./zero_prep.sh --path ~/path/to/store/prepped/config --workspace my_workspace
+   ./zero_prep.sh --path ~/.dotfiles --workspace my_workspace
    ```
 
    - **`--path`**: The location where the configuration files and repository will be stored.
@@ -59,7 +59,7 @@ This repository allows you to:
 
 2. If you want to bootstrap the **zero.sh** repository for future setup, use the `--bootstrap` flag:
    ```bash
-   ./zero_prep.sh --path ~/path/to/store/prepped/config --bootstrap
+   ./zero_prep.sh --path ~/.dotfiles --bootstrap
    ```
 
 ### Bootstrapping the Zero.sh Repository
@@ -73,30 +73,36 @@ zero setup
 This will symlink the configuration files, install the Homebrew packages, and apply system preferences.
 
 ## Directory Structure
-The script generates the following structure:
+The script generates the following structure inside the `.dotfiles` directory:
 
 ```
-~/path/to/store/prepped/config
-├── Brewfile
-├── defaults.yaml
-├── run/
+~/.dotfiles/
+├── zero/            # Cloned zero.sh repository
+├── workspaces/      # Contains multiple workspace configurations
+│   ├── home/
+│   ├── work/
+│   └── shared/
+├── Brewfile         # Homebrew package list (per workspace)
+├── defaults.yaml    # System defaults and preferences (per workspace)
+├── run/             # Scripts that run before/after the setup (per workspace)
 │   ├── before/
 │   └── after/
-├── symlinks/
-│   ├── shell/
-│   ├── git/
-│   └── config/
-└── zero/  (cloned zero.sh repository)
+└── symlinks/        # Symlinked configuration files (per workspace)
+    ├── shell/
+    ├── git/
+    └── config/
 ```
 
-- **Brewfile**: Lists all Homebrew packages for easy installation.
-- **defaults.yaml**: Contains macOS system preferences for installed apps and system settings.
-- **symlinks/**: Contains symlinked configuration files.
-- **run/**: Contains scripts that run before and after the setup.
-- **zero/**: Contains the cloned **zero.sh** repository.
+- **zero/**: Contains the **zero.sh** tool, used for applying system configurations.
+- **workspaces/**: Contains the configurations for different workspaces, like `home`, `work`, and `shared`. Each workspace has its own `Brewfile`, `defaults.yaml`, `symlinks`, and `run/` folders.
+- **Brewfile**: Lists all Homebrew packages for easy installation, specific to each workspace.
+- **defaults.yaml**: Contains macOS system preferences for installed apps and system settings, specific to each workspace.
+- **run/**: Contains scripts that run before and after the setup for each workspace.
+- **symlinks/**: Contains symlinked configuration files, such as shell and git configurations, specific to each workspace.
 
 ## Contributing
 We welcome contributions! Please fork the repository and submit a pull request with your changes.
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+
