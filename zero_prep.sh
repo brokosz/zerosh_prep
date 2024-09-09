@@ -187,7 +187,7 @@ detect_shell
 # Define other paths based on the provided or default dotfiles directory
 BREWFILE="$DOTFILES_DIR/Brewfile"
 DEFAULTS_YAML="$DOTFILES_DIR/defaults.yaml"
-SYMLINKS_DIR="$DOTFILES_DIR/symlinks/$SHELL_NAME"  # Use shell name as folder
+SYMLINKS_DIR="$DOTFILES_DIR/symlinks"
 RUN_BEFORE_DIR="$DOTFILES_DIR/run/before"
 RUN_AFTER_DIR="$DOTFILES_DIR/run/after"
 
@@ -279,7 +279,7 @@ cat <<EOF
    git remote add origin <your-repo-url>
    git add .
    git commit -m "Initial dotfiles commit"
-   git push -u origin main
+   git push -u origin master
 
 4. On a new machine:
    a. Clone the repository:
