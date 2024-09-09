@@ -22,7 +22,7 @@ This script performs the following steps:
 
 Examples:
   ${0##*/} -w home          Create a setup for the 'home' workspace.
-  ${0##*/} -p /path/to/dir  Save configuration files to a custom directory.
+  ${0##*/} -p /path/to/store/prepped/config  Save configuration files to a custom directory.
   ${0##*/} -b               Bootstrap the zero.sh repository without running setup.
 EOF
 }
@@ -168,28 +168,16 @@ fi
 
 mkdir -p "$DOTFILES_DIR"
 
-# If a workspace is specified, create a workspace subdirectory inside the "workspaces" folder
-WORKSPACE_DIR="$DOTFILES_DIR/workspaces"
+# Ensure workspace is created inside the workspaces directory under .dotfiles
+WORKSPACE_DIR="$DOTFILES_DIR/workspaces/$WORKSPACE"
 mkdir -p "$WORKSPACE_DIR"
 
-if [ -n "$WORKSPACE" ]; then
-    WORKSPACE_DIR="$WORKSPACE_DIR/$WORKSPACE"
-    echo "Creating workspace: $WORKSPACE"
-    mkdir -p "$WORKSPACE_DIR"
-fi
-
-echo "Using directory: $DOTFILES_DIR"
-
-# Detect the user's shell and set the appropriate configuration file
-detect_shell
-
-# Define other paths based on the provided or default dotfiles directory
-BREWFILE="$DOTFILES_DIR/Brewfile"
-DEFAULTS_YAML="$DOTFILES_DIR/defaults.yaml"
-SYMLINKS_DIR="$DOTFILES_DIR/symlinks"
-RUN_BEFORE_DIR="$DOTFILES_DIR/run/before"
-RUN_AFTER_DIR="$DOTFILES_DIR/run/after"
-ZERO_DIR="$DOTFILES_DIR/zero"
+# Now use WORKSPACE_DIR for storing all config-related files (Brewfile, run, symlinks, etc.)
+BREWFILE="$WORKSPACE_DIR/Brewfile"
+DEFAULTS_YAML="$WORKSPACE_DIR/defaults.yaml"
+SYMLINKS_DIR="$WORKSPACE_DIR/symlinks"
+RUN_BEFORE_DIR="$WORKSPACE_DIR/run/before"
+RUN_AFTER_DIR="$WORKSPACE_DIR/run/after"
 
 # Create necessary directories only if they don't exist
 mkdir -p "$SYMLINKS_DIR/shell" "$SYMLINKS_DIR/git" "$SYMLINKS_DIR/config" "$RUN_BEFORE_DIR" "$RUN_AFTER_DIR"
@@ -279,4 +267,4 @@ if [ "$BOOTSTRAP" = true ]; then
     bootstrap_zero_sh
 fi
 
-echo "Setup completed. Configuration files have been generated in $DOTFILES_DIR."
+echo "Setup completed. Configuration files have been generated in $WORKSPACE_DIR."
