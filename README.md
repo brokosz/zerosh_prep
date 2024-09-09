@@ -98,7 +98,7 @@ The script generates the following structure:
 - **zero/**: Contains the cloned **zero.sh** repository.
 
 ## Next Steps
-1. Review the generated files in the configured directory.
+1. **Review the generated files** in the configured directory. Add any other folders you wish to symlink (e.g., additional dotfiles or application settings) or customize any of the `before` or `after` run scripts to tailor the setup process to your needs.
 2. Move the generated files to `~/.dotfiles`:
    ```bash
    mv ~/path/to/store/prepped/config ~/.dotfiles
